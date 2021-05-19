@@ -8,6 +8,11 @@
 #define NTP_PACKET_SIZE 48
 #define NTP_DEFAULT_LOCAL_PORT 1337
 
+typedef struct NTPTimestamp {
+  unsigned long epochTime;  // in s
+  unsigned long nanos;
+} NTPTimestamp;
+
 class NTPClient {
   private:
     UDP*          _udp;
@@ -21,6 +26,7 @@ class NTPClient {
     unsigned long _updateInterval = 60000;  // In ms
 
     unsigned long _currentEpoc    = 0;      // In s
+    unsigned long _currentNano    = 0;
     unsigned long _lastUpdate     = 0;      // In ms
 
     byte          _packetBuffer[NTP_PACKET_SIZE];
@@ -82,6 +88,7 @@ class NTPClient {
     unsigned long getMinutes(unsigned long epochTime) const;
     int getSeconds() const;
     unsigned long getSeconds(unsigned long epochTime) const;
+    int getMillis() const;
 
     /**
      * Changes the time offset. Useful for changing timezones dynamically
@@ -99,11 +106,13 @@ class NTPClient {
      */
     String getFormattedTime() const;
     String getFormattedTime(unsigned long epochTime) const;
+    String getFormattedTime(NTPTimestamp &data) const;
 
     /**
      * @return time in seconds since Jan. 1, 1970
      */
     unsigned long getEpochTime() const;
+    void getEpochTime(NTPTimestamp &data) const;
 
     /**
      * Stops the underlying UDP client

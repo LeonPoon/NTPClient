@@ -112,6 +112,10 @@ bool NTPClient::forceUpdate() {
   // this is NTP time (seconds since Jan 1 1900):
   unsigned long secsSince1900 = highWord << 16 | lowWord;
 
+  highWord = word(this->_packetBuffer[44], this->_packetBuffer[45]);
+  lowWord = word(this->_packetBuffer[46], this->_packetBuffer[47]);
+
+  this->_currentNano = (((uint64_t)(highWord << 16 | lowWord)) * 1000000000) >> 32;
   this->_currentEpoc = secsSince1900 - SEVENZYYEARS;
 
   return true;  // return true after successful update
@@ -127,9 +131,19 @@ bool NTPClient::update() {
 }
 
 unsigned long NTPClient::getEpochTime() const {
-  return this->_timeOffset + // User offset
+  NTPTimestamp data;
+  getEpochTime(data);
+  return data.epochTime;
+}
+
+void NTPClient::getEpochTime(NTPTimestamp &data) const {
+  unsigned long ms = millis() - this->_lastUpdate;
+  data.nanos = _currentNano + ((ms % 1000) * 1000000);
+  data.epochTime = (data.nanos / 1000000000) +
+         this->_timeOffset + // User offset
          this->_currentEpoc + // Epoch returned by the NTP server
-         ((millis() - this->_lastUpdate) / 1000); // Time since last update
+         (ms / 1000); // Time since last update
+  data.nanos = data.nanos % 1000000000;
 }
 
 int NTPClient::getDay() const {
@@ -156,6 +170,11 @@ int NTPClient::getSeconds() const {
 unsigned long NTPClient::getSeconds(unsigned long epochTime) const {
   return (epochTime % 60);
 }
+int NTPClient::getMillis() const {
+  NTPTimestamp data;
+  getEpochTime(data);
+  return data.nanos / 1000000;
+}
 
 String NTPClient::getFormattedTime() const {
   return getFormattedTime(this->getEpochTime());
@@ -172,6 +191,10 @@ String NTPClient::getFormattedTime(unsigned long rawTime) const {
   String secondStr = seconds < 10 ? "0" + String(seconds) : String(seconds);
 
   return hoursStr + ":" + minuteStr + ":" + secondStr;
+}
+
+String NTPClient::getFormattedTime(NTPTimestamp &data) const {
+  return getFormattedTime(data.epochTime) + "." + String(data.nanos + 1000000000).substring(1, 10);
 }
 
 void NTPClient::end() {
